@@ -1,9 +1,19 @@
 use fnv::FnvHashSet;
-use skyline::{hook, hooks::Region};
+use skyline::{hook, from_offset};
 
 static mut REPLACEMENT_SET: Option<FnvHashSet<u32>> = None;
 
-#[hook(offset = 0x000642bc)]
+#[from_offset(0x0005dd7c)]
+fn wwise_file_open_fallback(
+    this: u64,
+    file_name: u32,
+    p3: u32,
+    p4: *const u32,
+    p5: *const i8,
+    p6: u64,    
+) -> u64;
+
+#[hook(offset = 0x0006453c)]
 unsafe fn wwise_file_open(
     this: u64,
     file_name: u32,
@@ -20,11 +30,7 @@ unsafe fn wwise_file_open(
         .and_then(|s| s.get(&file_name))
         .is_some()
     {
-        let txt_ptr = skyline::hooks::getRegionAddress(Region::Text) as *mut u8;
-        let super_ptr = txt_ptr.offset(0x0005db3c);
-        let font_fn: extern "C" fn(u64, u32, u32, *const u32, *const i8, u64) -> u64 =
-            std::mem::transmute(super_ptr);
-        (font_fn)(this, file_name, p3, p4, p5, p6)
+        wwise_file_open_fallback(this, file_name, p3, p4, p5, p6)
     } else {
         call_original!(this, file_name, p3, p4, p5, p6)
     }
